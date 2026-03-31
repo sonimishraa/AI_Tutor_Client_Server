@@ -1,0 +1,5 @@
+fastapi
+uvicorn
+langchai-core
+langchain-ollama
+mcp
