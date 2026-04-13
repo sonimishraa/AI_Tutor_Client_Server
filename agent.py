@@ -1,17 +1,20 @@
 from mcp_client import list_mcp_tools, call_mcp_tool
 from llm_ollama import call_llm
+from prompt import build_prompt
+from tutor_model import TutorResponse, TutorRequest
 from langchain_core.messages import AIMessage
-from prompt import get_prompt
+
 
 class ChatAgent:
-    
-    def needs_tool_execution(self, llm_response: AIMessage) -> bool:
-        return bool(llm_response.tool_calls)
-    
-    async def run(self, query: str, pdf_path: str) -> str:
 
+    def needs_tool_execution(self, llm_response: AIMessage) -> bool:
+        return bool(getattr(llm_response, "tool_calls", []))
+
+    async def run(self, request: TutorRequest) -> str:
+
+        # Step 1: fetch tools from MCP server
         tools_response = await list_mcp_tools()
-        
+
         tools = [
             {
                 "type": "function",
@@ -24,10 +27,21 @@ class ChatAgent:
             for tool in tools_response.tools
         ]
 
-        custom_prompt = get_prompt(query, pdf_path)
+        # Step 2: build dynamic prompt
+        custom_prompt = build_prompt(
+            subject=request.subject,
+            level=request.level,
+            goal=request.goal
+        )
 
-        llm_response = call_llm(custom_prompt, tools)
-        
+        # Step 3: first LLM call
+        llm_response = call_llm(
+            system_prompt=custom_prompt,
+            user_query=request.user_query,
+            tools=tools
+        )
+
+        # Step 4: execute MCP tool if requested
         if self.needs_tool_execution(llm_response):
 
             tool_call = llm_response.tool_calls[0]
@@ -37,12 +51,22 @@ class ChatAgent:
                 arguments=tool_call["args"]
             )
 
-            custom_prompt = get_prompt(query, pdf_path, tool_result)
+            # Step 5: second LLM call with tool result
+            final_prompt = f"""
+            {custom_prompt}
 
-            llm_response = call_llm(custom_prompt, tools)
+            Tool Result:
+            {tool_result}
 
-            final_answer = llm_response.content
-        else:
-            final_answer = llm_response.content
-        
-        return final_answer
+            Now answer the student's question.
+            """
+
+            final_response = call_llm(
+                system_prompt=final_prompt,
+                user_query=request.user_query,
+                tools=tools
+            )
+
+            return final_response.content
+
+        return llm_response.content

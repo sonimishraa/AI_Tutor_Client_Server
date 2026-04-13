@@ -1,4 +1,9 @@
 from typing import Any, Optional
+import os
+
+
+PROMPT_PATH = "master_prompt.txt"
+
 
 def get_prompt(query: str, pdf_path: str = None, tool_result: Optional[Any] = None) -> str:
     prompt = f"""You are a helpful AI assistant. Your task is to answer the user's query using the information provided.
@@ -22,3 +27,18 @@ def get_prompt(query: str, pdf_path: str = None, tool_result: Optional[Any] = No
    
     """
     return prompt
+
+
+def load_prompt_template():
+    with open(PROMPT_PATH, "r") as file:
+        return file.read()
+
+
+def build_prompt(subject, level, goal):
+    template = load_prompt_template()
+
+    return template.format(
+        subject=subject,
+        level=level,
+        goal=goal
+    )

@@ -1,40 +1,26 @@
 import os
-from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException
 from agent import ChatAgent
-
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-UPLOAD_DIR = os.path.join(BASE_DIR, "..", "uploaded_pdfs")
-
-os.makedirs(UPLOAD_DIR, exist_ok=True)
+from tutor_model import TutorRequest, TutorResponse
 
 app = FastAPI()
 
 chat_agent = ChatAgent()
 
-@app.post("/chat")
-async def chat(
-    query: str = Form(...),
-    file: UploadFile | None = File(None)
-):
-    if not query.strip():
-        raise HTTPException(status_code=400, detail="Query cannot be empty")
 
-    pdf_path = None
+@app.post("/ask", response_model=TutorResponse)
+async def ask_tutor(request: TutorRequest):
 
-    if file:
-        if file.content_type != "application/pdf":
-            raise HTTPException(
-                status_code=400,
-                detail="Only PDF files are supported"
-            )
+    if not request.user_query.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="Query cannot be empty"
+        )
 
-        pdf_path = os.path.join(UPLOAD_DIR, file.filename)
+    result = await chat_agent.run(request)
 
-        with open(pdf_path, "wb") as f:
-            f.write(await file.read())
+    return TutorResponse(response=result)
 
-    result = await chat_agent.run(query, pdf_path)
-
-    return {
-        "answer": result
-    }
+@app.get("/")
+def health():
+    return {"status": "running"}
