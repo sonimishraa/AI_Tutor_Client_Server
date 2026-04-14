@@ -42,3 +42,33 @@ def build_prompt(subject, level, goal):
         level=level,
         goal=goal
     )
+
+def build_topic_prompt(user_query: str) -> str:
+    return f"""
+ You are an AI tutor.
+
+  Generate exactly 5 learning topics for:
+  topic: {user_query}
+
+  IMPORTANT RULES:
+ - Return ONLY valid JSON
+ - Do NOT return markdown
+ - Do NOT add explanation
+ - Complete all strings
+ - Complete the full JSON object
+
+   JSON format:
+   {{
+  "topic": "{user_query}",
+  "topics": [
+    {{
+      "id": 1,
+      "title": "Linear Regression",
+      "description": "Regression basics"
+    }}
+  ]
+}}
+"""
+
+  
+    

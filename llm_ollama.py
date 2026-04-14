@@ -6,7 +6,7 @@ MODEL_NAME= "qwen2.5-coder:14b"
 llm = ChatOllama(model=MODEL_NAME,
                  base_url ="http://127.0.0.1:11434",
     temperature=0.3,
-    num_predict=120) ## use correct port for model base url
+    num_predict=1024) ## use correct port for model base url
 
 
 def call_llm(system_prompt, user_query, tools=None):

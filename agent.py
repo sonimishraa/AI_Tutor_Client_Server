@@ -1,8 +1,11 @@
 from mcp_client import list_mcp_tools, call_mcp_tool
 from llm_ollama import call_llm
 from prompt import build_prompt
+from prompt import build_topic_prompt
 from tutor_model import TutorResponse, TutorRequest
+from tutor_topic_model import TopicRequest
 from langchain_core.messages import AIMessage
+import json
 
 
 class ChatAgent:
@@ -10,7 +13,7 @@ class ChatAgent:
     def needs_tool_execution(self, llm_response: AIMessage) -> bool:
         return bool(getattr(llm_response, "tool_calls", []))
 
-    async def run(self, request: TutorRequest) -> str:
+    async def run(self, request ) -> str:
 
         # Step 1: fetch tools from MCP server
         tools_response = await list_mcp_tools()
@@ -27,12 +30,17 @@ class ChatAgent:
             for tool in tools_response.tools
         ]
 
-        # Step 2: build dynamic prompt
-        custom_prompt = build_prompt(
-            subject=request.subject,
-            level=request.level,
-            goal=request.goal
-        )
+        # Step1: build Topic Prompt
+        if isinstance(request, TutorRequest):
+           custom_prompt = build_prompt(
+               subject=request.subject,
+               level=request.level,
+               goal=request.goal
+           )
+        else:
+           custom_prompt = build_topic_prompt(
+               user_query=request.user_query
+            )
 
         # Step 3: first LLM call
         llm_response = call_llm(
@@ -67,6 +75,21 @@ class ChatAgent:
                 tools=tools
             )
 
-            return final_response.content
 
-        return llm_response.content
+            return final_response.content
+        
+        if isinstance(request, TopicRequest):
+          return safe_json_parse(llm_response.content)
+
+        return {"response": llm_response.content}
+    
+
+
+def safe_json_parse(content: str):
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError:
+        return {
+            "response": content,
+            "error": "Invalid or incomplete JSON from model"
+        }
